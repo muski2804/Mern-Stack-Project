@@ -1,4 +1,3 @@
-
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 
@@ -34,10 +33,8 @@ const createUser = async (req, res) => {
       });
     }
 
-    // Hash password before saving it
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // IMPORTANT: Your model requires passwordHash
     const user = await User.create({
       name,
       email: normalizedEmail,
@@ -70,14 +67,29 @@ const createUser = async (req, res) => {
   }
 };
 
-// GET all users
+// GET all users (WITH SERVER-SIDE PAGINATION)
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-passwordHash');
+    // 1. Read page and limit from query parameters (defaults: page 1, limit 10)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
+    // 2. Calculate documents to skip
+    const skip = (page - 1) * limit;
+
+    // 3. Fetch paginated users and total count concurrently
+    const [users, totalUsers] = await Promise.all([
+      User.find().select('-passwordHash').skip(skip).limit(limit).exec(),
+      User.countDocuments()
+    ]);
+
+    // 4. Respond with data and pagination metadata
     res.status(200).json({
       success: true,
-      count: users.length,
+      currentPage: page,
+      totalPages: Math.ceil(totalUsers / limit),
+      totalResults: totalUsers,
+      pageSize: users.length,
       data: users
     });
   } catch (error) {

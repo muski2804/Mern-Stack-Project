@@ -1,7 +1,6 @@
+const Task = require('../models/task');
 
-const Task = require('../models/Task');
-
-// CREATE a task
+// CREATE a new task
 const createTask = async (req, res) => {
   try {
     const task = await Task.create(req.body);
@@ -19,14 +18,29 @@ const createTask = async (req, res) => {
   }
 };
 
-// GET all tasks
+// GET all tasks (WITH SERVER-SIDE PAGINATION)
 const getAllTasks = async (req, res) => {
   try {
-    const tasks = await Task.find();
+    // 1. Read page and limit from query parameters (defaults: page 1, limit 10)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
+    // 2. Calculate documents to skip
+    const skip = (page - 1) * limit;
+
+    // 3. Fetch paginated tasks and total count concurrently
+    const [tasks, totalTasks] = await Promise.all([
+      Task.find().skip(skip).limit(limit).exec(),
+      Task.countDocuments()
+    ]);
+
+    // 4. Respond with data and pagination metadata
     res.status(200).json({
       success: true,
-      count: tasks.length,
+      currentPage: page,
+      totalPages: Math.ceil(totalTasks / limit),
+      totalResults: totalTasks,
+      pageSize: tasks.length,
       data: tasks
     });
   } catch (error) {
@@ -37,7 +51,7 @@ const getAllTasks = async (req, res) => {
   }
 };
 
-// GET one task by ID
+// GET a single task by ID
 const getTaskById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -56,18 +70,21 @@ const getTaskById = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: error.message
+      message: 'Invalid task ID'
     });
   }
 };
 
-// UPDATE a task
+// UPDATE a task (PUT and PATCH)
 const updateTask = async (req, res) => {
   try {
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      {
+        new: true,
+        runValidators: true
+      }
     );
 
     if (!task) {
@@ -90,7 +107,7 @@ const updateTask = async (req, res) => {
   }
 };
 
-// DELETE a task
+// DELETE a task permanently
 const deleteTask = async (req, res) => {
   try {
     const task = await Task.findByIdAndDelete(req.params.id);
@@ -109,11 +126,12 @@ const deleteTask = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       success: false,
-      message: error.message
+      message: 'Invalid task ID'
     });
   }
 };
 
+// Export all controller functions
 module.exports = {
   createTask,
   getAllTasks,
