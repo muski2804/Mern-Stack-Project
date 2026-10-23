@@ -1,20 +1,25 @@
-
 require('dotenv').config();
 
 const express = require('express');
 const connectDB = require('./config/db');
 
+// Import Route files
 const userRoutes = require('./routes/userRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
 
-// Middleware
+// Middleware to parse JSON and URL-encoded bodies (Crucial for form-data and Multer)
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// API routes
+// API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Health check API
 app.get('/api/health', (req, res) => {
